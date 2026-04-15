@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFA → DFA Converter & Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=Noto+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0ede6;
+  --surface: #ffffff;
+  --surface2: #f7f4ef;
+  --border: #d8d2c8;
+  --text: #1a1814;
+  --muted: #7a7570;
+  --accent: #c0392b;
+  --accent2: #2c5f8a;
+  --accent3: #27704a;
+  --yellow: #e8a020;
+  --nfa-col: #2c5f8a;
+  --dfa-col: #c0392b;
+  --node-r: 28;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans', sans-serif;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--text);
+  color: var(--bg);
+  padding: 1.5rem 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: -0.02em;
+}
+
+.logo span { color: var(--yellow); }
+
+.header-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  opacity: 0.5;
+  text-transform: uppercase;
+}
+
+/* ── LAYOUT ── */
+.app {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  height: calc(100vh - 62px);
+}
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; height: auto; }
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section {
+  padding: 1.2rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-section:last-child { border-bottom: none; }
+
+.section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.9rem;
+}
+
+label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+  margin-top: 0.7rem;
+}
+
+label:first-of-type { margin-top: 0; }
+
+input, select, textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.55rem 0.75rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent2);
+}
+
+textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+
+.hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.3rem;
+  line-height: 1.4;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: center;
+}
+
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+  margin-top: 0.8rem;
+}
+
+.btn-primary:hover { background: var(--accent); }
+
+.btn-secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+
+.btn-secondary:hover { background: var(--border); }
+
+/* Presets */
+.preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.preset-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.45rem 0.5rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.15s;
+  text-align: left;
+  line-height: 1.3;
+}
+.preset-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+.preset-btn strong { display: block; font-size: 0.68rem; }
+
+/* Test string */
+.test-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.test-row input { flex: 1; }
+
+.btn-test {
+  background: var(--accent3);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0 0.9rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.btn-test:hover { background: #1f5438; }
+
+.test-result {
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  display: none;
+}
+
+.test-result.accept { background: rgba(39,112,74,0.12); color: var(--accent3); border: 1px solid rgba(39,112,74,0.3); }
+.test-result.reject { background: rgba(192,57,43,0.1); color: var(--accent); border: 1px solid rgba(192,57,43,0.3); }
+
+/* ── MAIN AREA ── */
+.main-area {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  gap: 0;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.8rem 1.5rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--text); }
+
+.tab-content { display: none; flex: 1; overflow: hidden; }
+.tab-content.active { display: flex; flex-direction: column; }
+
+/* Canvas areas */
+.canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20px 20px, var(--border) 1px, transparent 0),
+    var(--bg);
+  background-size: 40px 40px;
+}
+
+canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+}
+
+.canvas-label {
+  position: absolute;
+  top: 12px; left: 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+/* Split canvas for NFA+DFA */
+.split-canvas {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+.split-canvas .canvas-wrap:first-child {
+  border-right: 1px solid var(--border);
+}
+
+/* ── TRANSITION TABLE ── */
+.table-tab {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.table-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.3rem;
+}
+
+.table-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 1.2rem;
+}
+
+.trans-table-wrap { overflow-x: auto; margin-bottom: 2rem; }
+
+table {
+  border-collapse: collapse;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  min-width: 100%;
+}
+
+th {
+  background: var(--text);
+  color: var(--bg);
+  padding: 0.65rem 1rem;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+td {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  text-align: center;
+  white-space: nowrap;
+}
+
+tr:nth-child(even) td { background: var(--surface2); }
+tr:hover td { background: rgba(44,95,138,0.07); }
+
+td.start-state { color: var(--accent2); font-weight: 700; }
+td.accept-state { color: var(--accent3); font-weight: 700; }
+td.both-state { color: var(--accent); font-weight: 700; }
+
+/* Steps panel */
+.steps-panel {
+  padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.step-item {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.step-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--bg);
+  background: var(--text);
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  flex-shrink: 0;
+  height: fit-content;
+  margin-top: 1px;
+}
+
+.step-content h4 {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.step-content p {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.step-content .mono {
+  font-family: 'Space Mono', monospace;
+  background: var(--surface2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+  font-size: 0.7rem;
+}
+
+/* Error/info */
+.msg {
+  padding: 0.7rem 1rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: 'Space Mono', monospace;
+  margin-top: 0.5rem;
+}
+
+.msg-error { background: rgba(192,57,43,0.08); color: var(--accent); border: 1px solid rgba(192,57,43,0.2); }
+.msg-info { background: rgba(44,95,138,0.08); color: var(--accent2); border: 1px solid rgba(44,95,138,0.2); }
+
+/* Legend */
+.legend {
+  position: absolute;
+  bottom: 12px; right: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.65rem;
+  font-family: 'Space Mono', monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 2rem;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+.empty-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+
+.empty-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">NFA <span>→</span> DFA</div>
+    <div class="header-tag">Subset Construction · Visualizer</div>
+  </div>
+  <div class="header-tag">Automata Theory</div>
+</header>
+
+<div class="app">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="section-label">Quick Presets</div>
+      <div class="preset-grid">
+        <button class="preset-btn" onclick="loadPreset('ends01')">
+          <strong>Ends with 01</strong>Binary strings ending in 01
+        </button>
+        <button class="preset-btn" onclick="loadPreset('aa')">
+          <strong>Contains aa</strong>Strings with "aa" over {a,b}
+        </button>
+        <button class="preset-btn" onclick="loadPreset('eps')">
+          <strong>ε-NFA</strong>With epsilon transitions
+        </button>
+        <button class="preset-btn" onclick="loadPreset('ab3')">
+          <strong>aⁿb (n≥1)</strong>One or more a's then b
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">NFA Definition</div>
+
+      <label>States (comma-separated)</label>
+      <input type="text" id="inp-states" placeholder="q0, q1, q2" value="q0, q1, q2">
+
+      <label>Alphabet (comma-separated)</label>
+      <input type="text" id="inp-alpha" placeholder="0, 1" value="0, 1">
+
+      <label>Start State</label>
+      <input type="text" id="inp-start" placeholder="q0" value="q0">
+
+      <label>Accept States (comma-separated)</label>
+      <input type="text" id="inp-accept" placeholder="q2" value="q2">
+
+      <label>Transitions</label>
+      <textarea id="inp-trans" placeholder="q0,0,q0&#10;q0,1,q0&#10;q0,0,q1&#10;q1,1,q2">q0,0,q0
+q0,1,q0
+q0,0,q1
+q1,1,q2</textarea>
+      <div class="hint">Format: state,symbol,nextState (one per line)<br>Use ε for epsilon transitions</div>
+
+      <div id="input-msg"></div>
+      <button class="btn btn-primary" onclick="convert()">▶ Convert & Visualize</button>
+      <button class="btn btn-secondary" onclick="clearAll()">✕ Clear</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Test String</div>
+      <div class="test-row">
+        <input type="text" id="inp-test" placeholder="e.g. 001">
+        <button class="btn-test" onclick="testString()">Test</button>
+      </div>
+      <div id="test-result" class="test-result"></div>
+    </div>
+
+  </div>
+
+  <!-- ── MAIN ── -->
+  <div class="main-area">
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('viz', this)">Visualization</button>
+      <button class="tab-btn" onclick="switchTab('table', this)">Transition Table</button>
+      <button class="tab-btn" onclick="switchTab('steps', this)">Step-by-Step</button>
+    </div>
+
+    <!-- VIZ TAB -->
+    <div id="tab-viz" class="tab-content active">
+      <div class="split-canvas">
+        <div class="canvas-wrap" id="nfa-wrap">
+          <canvas id="nfa-canvas"></canvas>
+          <div class="canvas-label" style="color:var(--nfa-col);border-color:var(--nfa-col)">NFA</div>
+          <div id="nfa-empty" class="empty-state">
+            <div class="empty-icon">◎</div>
+            <div class="empty-text">NFA will appear here</div>
+            <div class="empty-sub">Define your NFA and click Convert</div>
+          </div>
+        </div>
+        <div class="canvas-wrap" id="dfa-wrap">
+          <canvas id="dfa-canvas"></canvas>
+          <div class="canvas-label" style="color:var(--dfa-col);border-color:var(--dfa-col)">DFA (Subset Construction)</div>
+          <div id="dfa-empty" class="empty-state">
+            <div class="empty-icon">●</div>
+            <div class="empty-text">DFA will appear here</div>
+            <div class="empty-sub">Convert your NFA to see the DFA</div>
+          </div>
+          <div class="legend" id="dfa-legend" style="display:none">
+            <div class="legend-item"><div class="legend-dot" style="border-color:var(--accent2);background:rgba(44,95,138,0.15)"></div> Start state</div>
+            <div class="legend-item"><div class="legend-dot" style="border-color:var(--accent3);background:rgba(39,112,74,0.15)"></div> Accept state</div>
+            <div class="legend-item"><div class="legend-dot" style="border-color:var(--accent);background:rgba(192,57,43,0.15)"></div> Start + Accept</div>
+            <div class="legend-item"><div class="legend-dot" style="border-color:#888;background:rgba(0,0,0,0.05)"></div> Dead state ∅</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE TAB -->
+    <div id="tab-table" class="tab-content">
+      <div class="table-tab">
+        <div id="table-content">
+          <div class="empty-state" style="height:300px">
+            <div class="empty-icon">⊞</div>
+            <div class="empty-text">No table yet</div>
+            <div class="empty-sub">Convert an NFA to see the transition tables</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEPS TAB -->
+    <div id="tab-steps" class="tab-content">
+      <div class="steps-panel" id="steps-content">
+        <div class="empty-state" style="height:300px">
+          <div class="empty-icon">≡</div>
+          <div class="empty-text">No steps yet</div>
+          <div class="empty-sub">Convert an NFA to see the subset construction steps</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// PRESETS
+// ─────────────────────────────────────────────
+const presets = {
+  ends01: {
+    states: 'q0, q1, q2',
+    alpha: '0, 1',
+    start: 'q0',
+    accept: 'q2',
+    trans: `q0,0,q0
+q0,1,q0
+q0,0,q1
+q1,1,q2`
+  },
+  aa: {
+    states: 'q0, q1, q2',
+    alpha: 'a, b',
+    start: 'q0',
+    accept: 'q2',
+    trans: `q0,a,q0
+q0,b,q0
+q0,a,q1
+q1,a,q2
+q2,a,q2
+q2,b,q2`
+  },
+  eps: {
+    states: 'q0, q1, q2, q3',
+    alpha: 'a, b',
+    start: 'q0',
+    accept: 'q3',
+    trans: `q0,ε,q1
+q0,ε,q2
+q1,a,q1
+q1,a,q3
+q2,b,q2
+q2,b,q3`
+  },
+  ab3: {
+    states: 'q0, q1',
+    alpha: 'a, b',
+    start: 'q0',
+    accept: 'q1',
+    trans: `q0,a,q0
+q0,b,q1`
+  }
+};
+
+function loadPreset(name) {
+  const p = presets[name];
+  document.getElementById('inp-states').value = p.states;
+  document.getElementById('inp-alpha').value = p.alpha;
+  document.getElementById('inp-start').value = p.start;
+  document.getElementById('inp-accept').value = p.accept;
+  document.getElementById('inp-trans').value = p.trans;
+  document.getElementById('input-msg').innerHTML = '';
+  convert();
+}
+
+// ─────────────────────────────────────────────
+// PARSING
+// ─────────────────────────────────────────────
+function parseNFA() {
+  const states = document.getElementById('inp-states').value.split(',').map(s => s.trim()).filter(Boolean);
+  const alpha = document.getElementById('inp-alpha').value.split(',').map(s => s.trim()).filter(Boolean);
+  const start = document.getElementById('inp-start').value.trim();
+  const accept = document.getElementById('inp-accept').value.split(',').map(s => s.trim()).filter(Boolean);
+  const transLines = document.getElementById('inp-trans').value.split('\n').map(s => s.trim()).filter(Boolean);
+
+  if (!states.length) throw new Error('No states defined.');
+  if (!alpha.length) throw new Error('No alphabet defined.');
+  if (!start) throw new Error('No start state defined.');
+  if (!states.includes(start)) throw new Error(`Start state "${start}" not in states.`);
+  for (const a of accept) if (!states.includes(a)) throw new Error(`Accept state "${a}" not in states.`);
+
+  // Build transition map: state -> symbol -> Set of states
+  const delta = {};
+  for (const s of states) {
+    delta[s] = {};
+    for (const sym of [...alpha, 'ε']) delta[s][sym] = new Set();
+  }
+
+  for (const line of transLines) {
+    const parts = line.split(',').map(s => s.trim());
+    if (parts.length < 3) throw new Error(`Invalid transition: "${line}". Use: state,symbol,nextState`);
+    const [from, sym, to] = parts;
+    if (!states.includes(from)) throw new Error(`Unknown state "${from}" in transition.`);
+    if (!states.includes(to)) throw new Error(`Unknown state "${to}" in transition.`);
+    if (!alpha.includes(sym) && sym !== 'ε') throw new Error(`Symbol "${sym}" not in alphabet.`);
+    delta[from][sym].add(to);
+  }
+
+  return { states, alpha, start, accept, delta };
+}
+
+// ─────────────────────────────────────────────
+// EPSILON CLOSURE
+// ─────────────────────────────────────────────
+function epsClosure(states, delta) {
+  const closure = new Set(states);
+  const stack = [...states];
+  while (stack.length) {
+    const s = stack.pop();
+    if (delta[s] && delta[s]['ε']) {
+      for (const t of delta[s]['ε']) {
+        if (!closure.has(t)) { closure.add(t); stack.push(t); }
+      }
+    }
+  }
+  return closure;
+}
+
+// ─────────────────────────────────────────────
+// SUBSET CONSTRUCTION
+// ─────────────────────────────────────────────
+function subsetConstruct(nfa) {
+  const { states, alpha, start, accept, delta } = nfa;
+  const steps = [];
+
+  // Start: eps-closure of start
+  const startSet = epsClosure([start], delta);
+  const startKey = setKey(startSet);
+
+  const worklist = [startSet];
+  const visited = new Map(); // key -> Set
+  visited.set(startKey, startSet);
+
+  const dfaDelta = {}; // dfaState -> sym -> dfaState
+  const dfaAccept = new Set();
+  const dfaStart = startKey;
+
+  steps.push({
+    title: 'Compute ε-closure of start state',
+    detail: `ε-closure({${start}}) = {${[...startSet].join(', ')}} → DFA start state: [${[...startSet].join(',')}]`
+  });
+
+  while (worklist.length) {
+    const current = worklist.pop();
+    const currKey = setKey(current);
+
+    if (!dfaDelta[currKey]) dfaDelta[currKey] = {};
+
+    // Check if accept
+    for (const s of current) {
+      if (accept.includes(s)) { dfaAccept.add(currKey); break; }
+    }
+
+    for (const sym of alpha) {
+      // move
+      const moved = new Set();
+      for (const s of current) {
+        if (delta[s] && delta[s][sym]) {
+          for (const t of delta[s][sym]) moved.add(t);
+        }
+      }
+
+      // eps closure
+      const closure = epsClosure([...moved], delta);
+      const closureKey = closure.size ? setKey(closure) : '∅';
+
+      dfaDelta[currKey][sym] = closureKey;
+
+      steps.push({
+        title: `δ([${[...current].join(',')}], ${sym})`,
+        detail: `move = {${[...moved].join(', ') || '∅'}} → ε-closure = {${[...closure].join(', ') || '∅'}} → DFA state: [${closureKey}]`
+      });
+
+      if (closure.size && !visited.has(closureKey)) {
+        visited.set(closureKey, closure);
+        worklist.push(closure);
+      }
+
+      if (!closure.size) {
+        // Dead state ∅
+        if (!dfaDelta['∅']) {
+          dfaDelta['∅'] = {};
+          for (const a of alpha) dfaDelta['∅'][a] = '∅';
+          steps.push({ title: 'Add dead state ∅', detail: 'All transitions from ∅ go back to ∅.' });
+        }
+      }
+    }
+  }
+
+  const dfaStates = [...Object.keys(dfaDelta)];
+  return { dfaStates, dfaAlpha: alpha, dfaStart, dfaDelta, dfaAccept, steps };
+}
+
+function setKey(s) {
+  return [...s].sort().join(',');
+}
+
+// ─────────────────────────────────────────────
+// MAIN CONVERT
+// ─────────────────────────────────────────────
+let currentNFA = null;
+let currentDFA = null;
+
+function convert() {
+  const msgEl = document.getElementById('input-msg');
+  try {
+    currentNFA = parseNFA();
+    currentDFA = subsetConstruct(currentNFA);
+    msgEl.innerHTML = `<div class="msg msg-info">✓ Converted — ${currentDFA.dfaStates.length} DFA states from ${currentNFA.states.length} NFA states</div>`;
+
+    drawNFA(currentNFA);
+    drawDFA(currentDFA, currentNFA);
+    renderTable(currentNFA, currentDFA);
+    renderSteps(currentDFA.steps);
+
+    document.getElementById('nfa-empty').style.display = 'none';
+    document.getElementById('dfa-empty').style.display = 'none';
+    document.getElementById('dfa-legend').style.display = 'flex';
+  } catch (e) {
+    msgEl.innerHTML = `<div class="msg msg-error">✗ ${e.message}</div>`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// DRAWING UTILITIES
+// ─────────────────────────────────────────────
+const R = 28;
+const COLORS = {
+  nfa: { node: '#2c5f8a', edge: '#2c5f8a', text: '#fff' },
+  dfa: { node: '#c0392b', edge: '#c0392b', text: '#fff' }
+};
+
+function layoutCircle(states, cx, cy, radius) {
+  const pos = {};
+  const n = states.length;
+  states.forEach((s, i) => {
+    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+    pos[s] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+  });
+  return pos;
+}
+
+function layoutGrid(states, w, h) {
+  const pos = {};
+  const n = states.length;
+  if (n === 0) return pos;
+  if (n === 1) { pos[states[0]] = { x: w / 2, y: h / 2 }; return pos; }
+
+  // Try to arrange in layers
+  const cols = Math.ceil(Math.sqrt(n * 1.5));
+  const rows = Math.ceil(n / cols);
+  const padX = 80, padY = 80;
+  const cellW = (w - padX * 2) / (cols - 1 || 1);
+  const cellH = (h - padY * 2) / (rows - 1 || 1);
+
+  states.forEach((s, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    pos[s] = { x: padX + col * cellW, y: padY + row * cellH };
+  });
+  return pos;
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color, label, isSelf, bend = 0) {
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1.5;
+
+  if (isSelf) {
+    // Self-loop
+    const loopR = 22;
+    ctx.beginPath();
+    ctx.arc(x1, y1 - R - loopR, loopR, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    // Arrow tip
+    const tipX = x1 + loopR * Math.sin(0.3);
+    const tipY = y1 - R - loopR + loopR * (1 - Math.cos(0.3));
+    drawArrowHead(ctx, tipX - 5, tipY, tipX + 3, tipY + 8, color);
+    // Label
+    ctx.fillStyle = color;
+    ctx.font = '11px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x1, y1 - R - loopR * 2 - 5);
+    return;
+  }
+
+  const dx = x2 - x1, dy = y2 - y1;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const ux = dx / dist, uy = dy / dist;
+
+  // Shorten to node edge
+  const sx = x1 + ux * R, sy = y1 + uy * R;
+  const ex = x2 - ux * R, ey = y2 - uy * R;
+
+  if (bend === 0) {
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    drawArrowHead(ctx, sx, sy, ex, ey, color);
+
+    const mx = (sx + ex) / 2 - uy * 14;
+    const my = (sy + ey) / 2 + ux * 14;
+    ctx.fillStyle = color;
+    ctx.font = '11px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, mx, my);
+  } else {
+    // Curved
+    const cpX = (sx + ex) / 2 - uy * bend;
+    const cpY = (sy + ey) / 2 + ux * bend;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.quadraticCurveTo(cpX, cpY, ex, ey);
+    ctx.stroke();
+
+    // Arrow at end
+    const t = 0.9;
+    const qx = (1-t)*(1-t)*sx + 2*(1-t)*t*cpX + t*t*ex;
+    const qy = (1-t)*(1-t)*sy + 2*(1-t)*t*cpY + t*t*ey;
+    drawArrowHead(ctx, qx, qy, ex, ey, color);
+
+    const lx = 0.5*0.5*sx + 2*0.5*0.5*cpX + 0.5*0.5*ex - uy * (bend * 0.4);
+    const ly = 0.5*0.5*sy + 2*0.5*0.5*cpY + 0.5*0.5*ey + ux * (bend * 0.4);
+    ctx.fillStyle = color;
+    ctx.font = '11px Space Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, lx, ly);
+  }
+}
+
+function drawArrowHead(ctx, fromX, fromY, toX, toY, color) {
+  const headLen = 9;
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - headLen * Math.cos(angle - 0.4), toY - headLen * Math.sin(angle - 0.4));
+  ctx.lineTo(toX - headLen * Math.cos(angle + 0.4), toY - headLen * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawNode(ctx, x, y, label, isStart, isAccept, color, textColor, scale = 1) {
+  const r = R * scale;
+  // Shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.12)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = isStart && isAccept ? 'rgba(192,57,43,0.85)' :
+                  isAccept ? 'rgba(39,112,74,0.85)' :
+                  isStart ? 'rgba(44,95,138,0.85)' :
+                  color;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.strokeStyle = isStart && isAccept ? '#c0392b' :
+                    isAccept ? '#27704a' :
+                    isStart ? '#2c5f8a' : '#999';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  if (isAccept) {
+    ctx.beginPath();
+    ctx.arc(x, y, r - 4, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#fff';
+  ctx.font = `${Math.max(10, 13 * scale)}px Space Mono, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const displayLabel = label.length > 8 ? label.substring(0, 7) + '…' : label;
+  ctx.fillText(displayLabel, x, y);
+
+  if (isStart) {
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - r - 20, y);
+    ctx.lineTo(x - r, y);
+    ctx.stroke();
+    drawArrowHead(ctx, x - r - 20, y, x - r, y, '#444');
+  }
+}
+
+function drawAutomaton(canvasId, states, alpha, start, accept, delta, color) {
+  const canvas = document.getElementById(canvasId);
+  const wrap = canvas.parentElement;
+  const W = wrap.clientWidth || 400;
+  const H = wrap.clientHeight || 400;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  if (!states || states.length === 0) return;
+
+  const n = states.length;
+  let pos;
+  if (n <= 6) {
+    const r = Math.min(W, H) * 0.32;
+    pos = layoutCircle(states, W / 2, H / 2, r);
+  } else {
+    pos = layoutGrid(states, W, H);
+  }
+
+  // Scale down nodes if many states
+  const scale = n > 8 ? 0.75 : n > 5 ? 0.85 : 1;
+
+  // Draw edges (group same state pairs)
+  const edgeGroups = {};
+  for (const from of states) {
+    if (!delta[from]) continue;
+    for (const sym of alpha) {
+      const tos = delta[from][sym];
+      const toArr = tos instanceof Set ? [...tos] : (tos ? [tos] : []);
+      for (const to of toArr) {
+        const key = from < to ? `${from}||${to}` : `${to}||${from}`;
+        if (!edgeGroups[key]) edgeGroups[key] = [];
+        edgeGroups[key].push({ from, sym, to });
+      }
+    }
+    // eps
+    if (delta[from]['ε']) {
+      for (const to of delta[from]['ε']) {
+        const key = from < to ? `${from}||${to}` : `${to}||${from}`;
+        if (!edgeGroups[key]) edgeGroups[key] = [];
+        edgeGroups[key].push({ from, sym: 'ε', to });
+      }
+    }
+  }
+
+  // Consolidate: group by (from,to), combine labels
+  const consolidated = {};
+  for (const from of states) {
+    if (!delta[from]) continue;
+    const syms = [...alpha, 'ε'];
+    for (const sym of syms) {
+      let toArr = [];
+      if (sym === 'ε') {
+        if (delta[from]['ε']) toArr = [...delta[from]['ε']];
+      } else {
+        const tos = delta[from][sym];
+        if (tos instanceof Set) toArr = [...tos];
+        else if (tos) toArr = [tos];
+      }
+      for (const to of toArr) {
+        const key = `${from}|${to}`;
+        const revKey = `${to}|${from}`;
+        if (!consolidated[key]) consolidated[key] = { from, to, syms: [] };
+        consolidated[key].syms.push(sym);
+      }
+    }
+  }
+
+  for (const [key, edge] of Object.entries(consolidated)) {
+    const { from, to, syms } = edge;
+    const revKey = `${to}|${from}`;
+    const hasReverse = consolidated[revKey] !== undefined;
+    const p1 = pos[from], p2 = pos[to];
+    if (!p1 || !p2) continue;
+    const lbl = syms.join(',');
+    const isSelf = from === to;
+    const bend = hasReverse && !isSelf ? 40 : 0;
+    drawArrow(ctx, p1.x, p1.y, p2.x, p2.y, color, lbl, isSelf, bend);
+  }
+
+  // Draw nodes
+  for (const s of states) {
+    const p = pos[s];
+    if (!p) continue;
+    drawNode(ctx, p.x, p.y, s,
+      s === start,
+      Array.isArray(accept) ? accept.includes(s) : accept.has(s),
+      'rgba(80,80,80,0.85)',
+      '#fff',
+      scale
+    );
+  }
+}
+
+function drawNFA(nfa) {
+  drawAutomaton('nfa-canvas', nfa.states, nfa.alpha, nfa.start, nfa.accept, nfa.delta, COLORS.nfa.edge);
+}
+
+function drawDFA(dfa, nfa) {
+  // Build delta as state -> sym -> string
+  const delta = {};
+  for (const s of dfa.dfaStates) {
+    delta[s] = {};
+    for (const sym of dfa.dfaAlpha) {
+      const t = dfa.dfaDelta[s] && dfa.dfaDelta[s][sym];
+      if (t) delta[s][sym] = t;
+    }
+  }
+
+  drawAutomaton('dfa-canvas',
+    dfa.dfaStates,
+    dfa.dfaAlpha,
+    dfa.dfaStart,
+    [...dfa.dfaAccept],
+    delta,
+    COLORS.dfa.edge
+  );
+}
+
+// ─────────────────────────────────────────────
+// TABLE RENDER
+// ─────────────────────────────────────────────
+function renderTable(nfa, dfa) {
+  const el = document.getElementById('table-content');
+  let html = '';
+
+  // NFA table
+  html += `<div class="table-title" style="color:var(--nfa-col)">NFA Transition Table</div>
+  <div class="table-sub">Original non-deterministic finite automaton — states may have multiple or no transitions per symbol.</div>
+  <div class="trans-table-wrap"><table>
+    <tr><th>State</th>${nfa.alpha.map(a=>`<th>${a}</th>`).join('')}<th>ε</th></tr>`;
+
+  for (const s of nfa.states) {
+    const isStart = s === nfa.start;
+    const isAccept = nfa.accept.includes(s);
+    const cls = isStart && isAccept ? 'both-state' : isStart ? 'start-state' : isAccept ? 'accept-state' : '';
+    const prefix = isStart ? '→ ' : '';
+    const suffix = isAccept ? ' *' : '';
+    html += `<tr><td class="${cls}">${prefix}${s}${suffix}</td>`;
+    for (const sym of [...nfa.alpha, 'ε']) {
+      const tos = nfa.delta[s] && nfa.delta[s][sym] ? [...nfa.delta[s][sym]] : [];
+      html += `<td>{${tos.join(', ') || '∅'}}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</table></div>`;
+
+  // DFA table
+  html += `<div class="table-title" style="color:var(--dfa-col);margin-top:1.5rem">DFA Transition Table</div>
+  <div class="table-sub">Equivalent deterministic automaton via subset construction — each NFA state-set becomes a single DFA state.</div>
+  <div class="trans-table-wrap"><table>
+    <tr><th>DFA State</th><th>NFA States</th>${dfa.dfaAlpha.map(a=>`<th>${a}</th>`).join('')}<th>Accept?</th></tr>`;
+
+  for (const s of dfa.dfaStates) {
+    const isStart = s === dfa.dfaStart;
+    const isAccept = dfa.dfaAccept.has(s);
+    const cls = isStart && isAccept ? 'both-state' : isStart ? 'start-state' : isAccept ? 'accept-state' : '';
+    const prefix = isStart ? '→ ' : '';
+    const suffix = isAccept ? ' *' : '';
+    const nfaStates = s === '∅' ? '∅' : `{${s}}`;
+    html += `<tr><td class="${cls}">${prefix}[${s}]${suffix}</td><td>${nfaStates}</td>`;
+    for (const sym of dfa.dfaAlpha) {
+      const t = dfa.dfaDelta[s] && dfa.dfaDelta[s][sym];
+      html += `<td>${t ? `[${t}]` : '∅'}</td>`;
+    }
+    html += `<td>${isAccept ? '✓' : '—'}</td></tr>`;
+  }
+  html += `</table></div>`;
+
+  el.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────
+// STEPS RENDER
+// ─────────────────────────────────────────────
+function renderSteps(steps) {
+  const el = document.getElementById('steps-content');
+  el.innerHTML = `<div style="margin-bottom:1rem">
+    <div class="table-title">Subset Construction — Step by Step</div>
+    <div class="table-sub">Each step shows how NFA state-sets combine to form DFA states.</div>
+  </div>` + steps.map((s, i) => `
+    <div class="step-item">
+      <div class="step-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="step-content">
+        <h4>${s.title}</h4>
+        <p>${s.detail}</p>
+      </div>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// TEST STRING
+// ─────────────────────────────────────────────
+function testString() {
+  const str = document.getElementById('inp-test').value;
+  const resultEl = document.getElementById('test-result');
+  if (!currentDFA) {
+    resultEl.className = 'test-result reject';
+    resultEl.textContent = '✗ Convert an NFA first!';
+    resultEl.style.display = 'block';
+    return;
+  }
+
+  let current = currentDFA.dfaStart;
+  for (const ch of str) {
+    if (!currentDFA.dfaAlpha.includes(ch)) {
+      resultEl.className = 'test-result reject';
+      resultEl.textContent = `✗ Symbol "${ch}" not in alphabet {${currentDFA.dfaAlpha.join(', ')}}`;
+      resultEl.style.display = 'block';
+      return;
+    }
+    const next = currentDFA.dfaDelta[current] && currentDFA.dfaDelta[current][ch];
+    current = next || '∅';
+  }
+
+  const accepted = currentDFA.dfaAccept.has(current);
+  resultEl.className = `test-result ${accepted ? 'accept' : 'reject'}`;
+  resultEl.textContent = accepted
+    ? `✓ ACCEPTED — ended in state [${current}]`
+    : `✗ REJECTED — ended in state [${current}]`;
+  resultEl.style.display = 'block';
+}
+
+// ─────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${id}`).classList.add('active');
+  btn.classList.add('active');
+
+  // Redraw on viz tab
+  if (id === 'viz' && currentNFA && currentDFA) {
+    setTimeout(() => { drawNFA(currentNFA); drawDFA(currentDFA, currentNFA); }, 50);
+  }
+}
+
+function clearAll() {
+  document.getElementById('inp-states').value = '';
+  document.getElementById('inp-alpha').value = '';
+  document.getElementById('inp-start').value = '';
+  document.getElementById('inp-accept').value = '';
+  document.getElementById('inp-trans').value = '';
+  document.getElementById('input-msg').innerHTML = '';
+  document.getElementById('test-result').style.display = 'none';
+
+  ['nfa-canvas','dfa-canvas'].forEach(id => {
+    const c = document.getElementById(id);
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, c.width, c.height);
+  });
+
+  document.getElementById('nfa-empty').style.display = 'flex';
+  document.getElementById('dfa-empty').style.display = 'flex';
+  document.getElementById('dfa-legend').style.display = 'none';
+  document.getElementById('table-content').innerHTML = `<div class="empty-state" style="height:300px"><div class="empty-icon">⊞</div><div class="empty-text">No table yet</div></div>`;
+  document.getElementById('steps-content').innerHTML = `<div class="empty-state" style="height:300px"><div class="empty-icon">≡</div><div class="empty-text">No steps yet</div></div>`;
+
+  currentNFA = null;
+  currentDFA = null;
+}
+
+// Enter to test
+document.getElementById('inp-test').addEventListener('keydown', e => {
+  if (e.key === 'Enter') testString();
+});
+
+// Auto-resize canvases on window resize
+window.addEventListener('resize', () => {
+  if (currentNFA && currentDFA) {
+    drawNFA(currentNFA);
+    drawDFA(currentDFA, currentNFA);
+  }
+});
+
+// Load default on start
+window.addEventListener('load', () => { convert(); });
+</script>
+</body>
+</html>
